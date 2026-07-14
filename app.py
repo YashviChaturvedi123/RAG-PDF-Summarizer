@@ -11,14 +11,17 @@ import warnings
 warnings.filterwarnings("ignore")
 
 st.set_page_config(page_title="RAG PDF Summarizer", page_icon="📄")
+
 st.title("📄 RAG PDF Summarizer")
 st.caption("Upload a PDF and generate a summary using RAG")
+
 
 @st.cache_resource
 def load_embedder():
     return SentenceTransformer(
         "sentence-transformers/all-MiniLM-L6-v2"
     )
+
 
 @st.cache_resource
 def load_summarizer():
@@ -28,11 +31,22 @@ def load_summarizer():
         device=-1
     )
 
+
 def normalize(vecs):
     norms = np.linalg.norm(vecs, axis=1, keepdims=True)
     return vecs / np.where(norms == 0, 1, norms)
 
-uploaded_file = st.file_uploader("Upload PDF", type="pdf")
+
+# Load models once
+with st.spinner("Loading AI models (first launch may take a few minutes)..."):
+    embedder = load_embedder()
+    summarizer = load_summarizer()
+
+
+uploaded_file = st.file_uploader(
+    "Upload PDF",
+    type="pdf"
+)
 
 if uploaded_file:
 
@@ -45,7 +59,7 @@ if uploaded_file:
         )
 
     if not raw_text.strip():
-        st.error("No text found in PDF.")
+        st.error("No readable text found in the PDF.")
         st.stop()
 
     splitter = RecursiveCharacterTextSplitter(
@@ -62,78 +76,83 @@ if uploaded_file:
 
     if st.button("✨ Generate Summary"):
 
-        with st.spinner("Creating embeddings..."):
-            embedder = load_embedder()
+        try:
 
-            embeddings = normalize(
-                embedder.encode(
-                    chunks,
-                    convert_to_numpy=True,
-                    show_progress_bar=False
+            with st.spinner("Creating embeddings..."):
+
+                embeddings = normalize(
+                    embedder.encode(
+                        chunks,
+                        convert_to_numpy=True,
+                        show_progress_bar=False
+                    )
+                ).astype("float32")
+
+            with st.spinner("Retrieving relevant chunks..."):
+
+                dim = embeddings.shape[1]
+
+                index = faiss.IndexFlatIP(dim)
+                index.add(embeddings)
+
+                query = (
+                    user_query.strip()
+                    if user_query.strip()
+                    else "Summarize this document"
                 )
-            ).astype("float32")
 
-        with st.spinner("Retrieving relevant chunks..."):
+                query_embedding = normalize(
+                    embedder.encode(
+                        [query],
+                        convert_to_numpy=True
+                    )
+                ).astype("float32")
 
-            dim = embeddings.shape[1]
+                top_k = min(5, len(chunks))
 
-            index = faiss.IndexFlatIP(dim)
-            index.add(embeddings)
-
-            query = (
-                user_query
-                if user_query.strip()
-                else "Summarize this document"
-            )
-
-            query_embedding = normalize(
-                embedder.encode(
-                    [query],
-                    convert_to_numpy=True
+                _, indices = index.search(
+                    query_embedding,
+                    top_k
                 )
-            ).astype("float32")
 
-            top_k = min(5, len(chunks))
+                top_chunks = [
+                    chunks[i]
+                    for i in indices[0]
+                ]
 
-            _, indices = index.search(
-                query_embedding,
-                top_k
-            )
+            with st.spinner("Generating summary..."):
 
-            top_chunks = [
-                chunks[i] for i in indices[0]
-            ]
+                context = " ".join(top_chunks)
 
-        with st.spinner("Generating summary..."):
+                # DistilBART accepts about 1024 tokens
+                context = context[:3000]
 
-            summarizer = load_summarizer()
-
-            context = " ".join(top_chunks)[:1500]
-
-            prompt = f"""
-            Summarize the following text:
-
-            {context}
-
-            Summary:
-            """
-
-            result = summarizer(
-                context,
-                max_length=150,
-                min_length=40,
-                do_sample=False
-            )
-
-            summary = result[0]["summary_text"]
-
-        st.subheader("📝 Summary")
-        st.write(summary)
-
-        with st.expander("Retrieved Chunks"):
-            for i, chunk in enumerate(top_chunks, 1):
-                st.markdown(f"**Chunk {i}**")
-                st.text(
-                    textwrap.fill(chunk, width=90)
+                result = summarizer(
+                    context,
+                    max_length=150,
+                    min_length=40,
+                    do_sample=False
                 )
-                st.divider()
+
+                summary = result[0]["summary_text"]
+
+            st.success("Summary generated successfully!")
+
+            st.subheader("📝 Summary")
+            st.write(summary)
+
+            with st.expander("Retrieved Chunks"):
+
+                for i, chunk in enumerate(top_chunks, start=1):
+                    st.markdown(f"**Chunk {i}**")
+                    st.text(
+                        textwrap.fill(
+                            chunk,
+                            width=90
+                        )
+                    )
+                    st.divider()
+
+        except Exception as e:
+            st.error("An error occurred while generating the summary.")
+            st.exception(e)
