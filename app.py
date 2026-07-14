@@ -23,10 +23,9 @@ def load_embedder():
 
 @st.cache_resource(show_spinner="Loading summarization model...")
 def load_summarizer():
-
     return pipeline(
         "summarization",
-        model="sshleifer/distilbart-cnn-6-6", 
+        model="Falconsai/text_summarization", 
         device=-1,
         framework="pt",
     )
@@ -38,8 +37,8 @@ def normalize(vecs):
 
 
 
-embedder = load_embedder()
-summarizer = load_summarizer()
+#embedder = load_embedder()
+#summarizer = load_summarizer()
 
 uploaded_file = st.file_uploader("Upload PDF", type="pdf")
 
@@ -67,6 +66,11 @@ if uploaded_file:
 
     if st.button("✨ Generate Summary"):
         try:
+            with st.spinner("Loading AI models into memory..."):
+                embedder = load_embedder()
+                summarizer = load_summarizer()
+
+           
             with st.spinner("Creating embeddings..."):
                 embeddings = normalize(
                     embedder.encode(
