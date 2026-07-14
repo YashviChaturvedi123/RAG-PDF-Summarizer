@@ -23,8 +23,8 @@ def load_embedder():
 @st.cache_resource
 def load_summarizer():
     return pipeline(
-        "text-generation",
-        model="gpt2",
+        "summarization",
+        model="sshleifer/distilbart-cnn-12-6",
         device=-1
     )
 
@@ -119,12 +119,13 @@ if uploaded_file:
             """
 
             result = summarizer(
-                prompt,
-                max_new_tokens=150,
+                context,
+                max_length=150,
+                min_length=40,
                 do_sample=False
             )
 
-            summary = result[0]["generated_text"]
+            summary = result[0]["summary_text"]
 
         st.subheader("📝 Summary")
         st.write(summary)
