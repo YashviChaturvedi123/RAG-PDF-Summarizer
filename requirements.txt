@@ -1,33 +1,19 @@
-# Streamlit UI
-
 streamlit==1.46.0
 
-# PDF text extraction
-
 pypdf==5.6.1
-
-# Text chunking
 
 langchain==0.3.26
 langchain-text-splitters==0.3.8
 
-# Embeddings
+sentence-transformers==3.0.1
 
-sentence-transformers==5.0.0
+faiss-cpu==1.8.0.post1
 
-# Vector store
+transformers==4.41.2
+torch==2.3.1
+torchvision==0.18.1
 
-faiss-cpu==1.11.0
-
-# Transformers and PyTorch
-
-transformers==4.55.0
-torch==2.7.1
-torchvision==0.22.1
-
-# Utilities
-
-numpy==2.3.0
-huggingface-hub==0.33.0
-safetensors==0.5.3
-tqdm==4.67.1
+numpy==1.26.4
+huggingface-hub==0.23.4
+safetensors==0.4.3
+tqdm==4.66.4
