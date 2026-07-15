@@ -28,6 +28,6 @@ torchvision==0.22.1
 # Utilities
 
 numpy==2.3.0
-huggingface-hub==0.33.0
+huggingface-hub==0.34.4
 safetensors==0.5.3
 tqdm==4.67.1
